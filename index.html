@@ -81,7 +81,7 @@
             if (onSize) {
                 onSize({ width, height });
             }
-        });
+        }, [ref.current.offsetWidth, ref.current.offsetHeight, onSize]);
 
         return <li ref={ref} className={'event' + (props.slim ? ' event_slim' : '')}>
             <button className="event__button">
@@ -217,26 +217,26 @@
                 initedRef.current = true;
                 setActiveTab(new URLSearchParams(location.search).get('tab') || 'all');
             }
-        });
+        }, [activeTab, initedRef, location.search, setActiveTab]);
 
         const onSelectInput = event => {
             setActiveTab(event.target.value);
         };
 
-        let sizes = [];
+        const sizesRef = React.useRef([]);
         const onSize = size => {
-            sizes = [...sizes, size];
+            sizesRef.current.push(size);
         };
 
         React.useEffect(() => {
-            const sumWidth = sizes.reduce((acc, item) => acc + item.width, 0);
-            const sumHeight = sizes.reduce((acc, item) => acc + item.height, 0);
+            const sumWidth = sizesRef.current.reduce((acc, item) => acc + item.width, 0);
+            const sumHeight = sizesRef.current.reduce((acc, item) => acc + item.height, 0);
 
             const newHasRightScroll = sumWidth > ref.current.offsetWidth;
             if (newHasRightScroll !== hasRightScroll) {
                 setHasRightScroll(newHasRightScroll);
             }
-        });
+        }, [sizesRef, hasRightScroll, ref.current, setHasRightScroll]);
 
         const onArrowCLick = () => {
             const scroller = ref.current.querySelector('.section__panel:not(.section__panel_hidden)');
