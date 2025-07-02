@@ -1,48 +1,98 @@
-import React from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {TABS, TABS_KEYS} from "./tabs.js";
 import {Event} from "./Event.jsx";
 
 export function Main() {
-    const ref = React.useRef();
-    const initedRef = React.useRef(false);
-    const [activeTab, setActiveTab] = React.useState('');
-    const [hasRightScroll, setHasRightScroll] = React.useState(false);
+    const ref = useRef();
+    const initedRef = useRef(false);
+    const [activeTab, setActiveTab] = useState('');
+    const [hasRightScroll, setHasRightScroll] = useState(false);
+    const sizesRef = useRef([]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (!activeTab && !initedRef.current) {
             initedRef.current = true;
             setActiveTab(new URLSearchParams(location.search).get('tab') || 'all');
         }
-    });
+    }, [activeTab]);
 
-    const onSelectInput = event => {
+    const onSelectInput = useCallback((event) => {
         setActiveTab(event.target.value);
-    };
+    }, [setActiveTab]);
 
-    const sizesRef = React.useRef([]);
-    const onSize = size => {
+    const onSize = useCallback((size) => {
         sizesRef.current.push(size);
-    };
 
-    React.useEffect(() => {
-        const sumWidth = sizesRef.current.reduce((acc, item) => acc + item.width, 0);
-        // const sumHeight = sizesRef.current.reduce((acc, item) => acc + item.height, 0);
+        requestAnimationFrame(() => {
+            if (ref.current) {
+                const sumWidth = sizesRef.current.reduce((acc, item) => acc + item.width, 0);
+                const newHasRightScroll = sumWidth > ref.current.offsetWidth;
 
-        const newHasRightScroll = sumWidth > ref.current.offsetWidth;
-        if (newHasRightScroll !== hasRightScroll) {
-            setHasRightScroll(newHasRightScroll);
-        }
-    });
+                if (newHasRightScroll !== hasRightScroll) {
+                    setHasRightScroll(newHasRightScroll);
+                }
+            }
+        });
+    }, [hasRightScroll]);
 
-    const onArrowCLick = () => {
-        const scroller = ref.current.querySelector('.section__panel:not(.section__panel_hidden)');
+    const onArrowClick = useCallback(() => {
+        const scroller = ref.current?.querySelector('.section__panel:not(.section__panel_hidden)');
         if (scroller) {
             scroller.scrollTo({
                 left: scroller.scrollLeft + 400,
                 behavior: 'smooth'
             });
         }
-    };
+    }, []);
+
+    const onTabClick = useCallback((key) => {
+        setActiveTab(key);
+    }, []);
+
+    const selectOptions = useMemo(() =>
+        TABS_KEYS.map(key => (
+            <option key={key} value={key}>
+                {TABS[key].title}
+            </option>
+        )), []);
+
+    const tabsList = useMemo(() =>
+        TABS_KEYS.map(key => (
+            <li
+                key={key}
+                role="tab"
+                aria-selected={key === activeTab ? 'true' : 'false'}
+                tabIndex={key === activeTab ? '0' : undefined}
+                className={'section__tab' + (key === activeTab ? ' section__tab_active' : '')}
+                id={`tab_${key}`}
+                aria-controls={`panel_${key}`}
+                onClick={() => onTabClick(key)}
+            >
+                {TABS[key].title}
+            </li>
+        )), [activeTab, onTabClick]);
+
+    const tabPanels = useMemo(() =>
+        TABS_KEYS.map(key => (
+            <div
+                key={key}
+                role="tabpanel"
+                className={'section__panel' + (key === activeTab ? '' : ' section__panel_hidden')}
+                aria-hidden={key === activeTab ? 'false' : 'true'}
+                id={`panel_${key}`}
+                aria-labelledby={`tab_${key}`}
+            >
+                <ul className="section__panel-list">
+                    {TABS[key].items.map((item, index) => (
+                        <Event
+                            key={`${key}-${index}`}
+                            {...item}
+                            onSize={onSize}
+                        />
+                    ))}
+                </ul>
+            </div>
+        )), [activeTab, onSize]);
 
     return <main className="main">
         <section className="section main__general">
@@ -142,48 +192,19 @@ export function Main() {
                 </h2>
 
                 <select className="section__select" defaultValue="all" onInput={onSelectInput}>
-                    {TABS_KEYS.map(key =>
-                        <option key={key} value={key}>
-                            {TABS[key].title}
-                        </option>
-                    )}
+                    {selectOptions}
                 </select>
 
                 <ul role="tablist" className="section__tabs">
-                    {TABS_KEYS.map(key =>
-                        <li
-                            key={key}
-                            role="tab"
-                            aria-selected={key === activeTab ? 'true' : 'false'}
-                            tabIndex={key === activeTab ? '0' : undefined}
-                            className={'section__tab' + (key === activeTab ? ' section__tab_active' : '')}
-                            id={`tab_${key}`}
-                            aria-controls={`panel_${key}`}
-                            onClick={() => setActiveTab(key)}
-                        >
-                            {TABS[key].title}
-                        </li>
-                    )}
+                    {tabsList}
                 </ul>
             </div>
 
             <div className="section__panel-wrapper" ref={ref}>
-                {TABS_KEYS.map(key =>
-                    <div key={key} role="tabpanel" className={'section__panel' + (key === activeTab ? '' : ' section__panel_hidden')} aria-hidden={key === activeTab ? 'false' : 'true'} id={`panel_${key}`} aria-labelledby={`tab_${key}`}>
-                        <ul className="section__panel-list">
-                            {TABS[key].items.map((item, index) =>
-                                <Event
-                                    key={index}
-                                    {...item}
-                                    onSize={onSize}
-                                />
-                            )}
-                        </ul>
-                    </div>
+                {tabPanels}
+                {hasRightScroll && (
+                    <div className="section__arrow" onClick={onArrowClick}></div>
                 )}
-                {hasRightScroll &&
-                    <div className="section__arrow" onClick={onArrowCLick}></div>
-                }
             </div>
         </section>
     </main>;
